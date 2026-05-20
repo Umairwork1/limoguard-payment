@@ -48,6 +48,16 @@ function initApp(): Promise<void> {
 }
 
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
+  (res as any).setHeader('Access-Control-Allow-Origin', '*');
+  (res as any).setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  (res as any).setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  if (req.method === 'OPTIONS') {
+    (res as any).statusCode = 204;
+    res.end();
+    return;
+  }
+
   await initApp();
   expressApp(req as any, res as any);
 }
