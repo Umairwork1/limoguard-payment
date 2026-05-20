@@ -8,6 +8,16 @@ import { AppModule } from '../src/app.module';
 
 const expressApp = express();
 
+expressApp.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  next();
+});
+
 let appReady: Promise<void> | null = null;
 
 function initApp(): Promise<void> {
@@ -15,12 +25,6 @@ function initApp(): Promise<void> {
 
   appReady = (async () => {
     const app = await NestFactory.create(AppModule, new ExpressAdapter(expressApp));
-
-    app.enableCors({
-      origin: process.env.FRONTEND_URL || '*',
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization'],
-    });
 
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
     app.setGlobalPrefix('api');
@@ -48,16 +52,6 @@ function initApp(): Promise<void> {
 }
 
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
-  (res as any).setHeader('Access-Control-Allow-Origin', '*');
-  (res as any).setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-  (res as any).setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-  if (req.method === 'OPTIONS') {
-    (res as any).statusCode = 204;
-    res.end();
-    return;
-  }
-
   await initApp();
   expressApp(req as any, res as any);
 }
