@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { RecurringModule } from './recurring/recurring.module';
+import { DirectModule } from './direct/direct.module';
 
 @Module({
   imports: [
@@ -10,6 +11,7 @@ import { RecurringModule } from './recurring/recurring.module';
       process.env.MONGODB_URI || 'mongodb://localhost:27017/myfatoorah_recurring',
     ),
     RecurringModule,
+    DirectModule,
   ],
 })
 export class AppModule {}
