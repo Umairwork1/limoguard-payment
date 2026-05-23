@@ -65,7 +65,8 @@ export class DirectController {
   async callback(@Query() query: Record<string, string>, @Res() res: Response) {
     const paymentId = query.Id || query.paymentId;
     await this.directService.handleCallback(paymentId);
-    return res.redirect(`https://limoguard-payments-frontend.vercel.app/payment-success.html?invoiceId=${query.Id}`);
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    return res.redirect(`${frontendUrl}/payment-success?invoiceId=${query.Id || query.paymentId}`);
   }
 
   @Get('error')
@@ -75,7 +76,8 @@ export class DirectController {
   })
   @ApiQuery({ name: 'Id', required: false })
   errorCallback(@Res() res: Response) {
-    return res.redirect('https://limoguard-payments-frontend.vercel.app/payment-error.html');
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    return res.redirect(`${frontendUrl}/payment-error`);
   }
 
   @Get('tokens')
