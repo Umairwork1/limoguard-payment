@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { RecurringModule } from './recurring/recurring.module';
 import { DirectModule } from './direct/direct.module';
+import { PaymentModule } from './payment/payment.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { DirectModule } from './direct/direct.module';
     ),
     RecurringModule,
     DirectModule,
+    PaymentModule,
   ],
 })
 export class AppModule {}
