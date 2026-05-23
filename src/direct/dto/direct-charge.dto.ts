@@ -12,10 +12,11 @@ export class DirectChargeDto {
     example: 'KWD',
     enum: ['KWD', 'SAR', 'BHD', 'AED', 'QAR', 'OMR', 'JOD', 'EGP'],
     default: 'KWD',
+    description: 'Currency to display to the customer',
   })
   @IsOptional()
   @IsString()
-  displayCurrencyIso?: string = 'KWD';
+  currencyIso?: string = 'KWD';
 
   @ApiPropertyOptional({ enum: ['en', 'ar'], default: 'en' })
   @IsOptional()

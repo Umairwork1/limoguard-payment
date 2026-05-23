@@ -3,6 +3,8 @@ import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { RecurringModule } from './recurring/recurring.module';
 import { DirectModule } from './direct/direct.module';
+import { V3Module } from './v3/v3.module';
+import { WebhookModule } from './webhook/webhook.module';
 
 @Module({
   imports: [
@@ -12,6 +14,8 @@ import { DirectModule } from './direct/direct.module';
     ),
     RecurringModule,
     DirectModule,
+    V3Module,
+    WebhookModule,
   ],
 })
 export class AppModule {}

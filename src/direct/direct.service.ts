@@ -135,7 +135,7 @@ export class DirectService {
     const body = {
       CustomerTokenId: tokenId,
       InvoiceValue: dto.invoiceValue,
-      DisplayCurrencyIso: dto.displayCurrencyIso || token.currencyIso || 'KWD',
+      DisplayCurrencyIso: dto.currencyIso || token.currencyIso || 'KWD',
       Language: dto.language || 'en',
       ...(dto.customerReference && { CustomerReference: dto.customerReference }),
     };

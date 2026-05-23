@@ -25,6 +25,9 @@ async function bootstrap() {
     .addBearerAuth()
     .addTag('Payment Methods', 'Get available payment methods')
     .addTag('Recurring', 'Create, manage, and query recurring payments')
+    .addTag('Direct (v3)', 'Tokenize and charge cards via v2 DirectPayment')
+    .addTag('V3 — Vendor-Managed Recurring', 'Session-based tokenization + direct charges via v3 API')
+    .addTag('Webhooks', 'Receive and verify MyFatoorah webhook events (HMAC-SHA256)')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
