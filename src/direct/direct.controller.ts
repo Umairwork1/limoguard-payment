@@ -64,7 +64,11 @@ export class DirectController {
   @ApiQuery({ name: 'Id', required: true, description: 'Payment ID sent by MyFatoorah' })
   async callback(@Query() query: Record<string, string>, @Res() res: Response) {
     const paymentId = query.Id || query.paymentId;
-    await this.directService.handleCallback(paymentId);
+    try {
+      await this.directService.handleCallback(paymentId);
+    } catch {
+      // log but always redirect — payment already processed by MyFatoorah
+    }
     return res.redirect(`https://limoguard-payments-frontend.vercel.app/payment-success.html?invoiceId=${query.Id}`);
   }
 

@@ -1,9 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsOptional, IsString, Min } from 'class-validator';
+import { IsEnum, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class DirectChargeDto {
-  @ApiProperty({ example: 10.5, description: 'Amount to charge the customer' })
+  @ApiProperty({
+    example: 10.5,
+    description: 'Amount to charge the customer using the saved token',
+  })
+  @IsNumber()
   @Min(0.001)
   @Type(() => Number)
   invoiceValue: number;
@@ -15,15 +19,18 @@ export class DirectChargeDto {
   })
   @IsOptional()
   @IsString()
-  displayCurrencyIso?: string = 'KWD';
+  currency?: string = 'KWD';
 
-  @ApiPropertyOptional({ enum: ['en', 'ar'], default: 'en' })
+  @ApiPropertyOptional({ enum: ['EN', 'AR'], default: 'EN' })
   @IsOptional()
-  @IsEnum(['en', 'ar'])
-  language?: string = 'en';
+  @IsEnum(['EN', 'AR'])
+  language?: string = 'EN';
 
-  @ApiPropertyOptional({ description: 'Your internal reference for this specific charge' })
+  @ApiPropertyOptional({
+    example: 'order-invoice-001',
+    description: 'Your internal reference for this specific charge',
+  })
   @IsOptional()
   @IsString()
-  customerReference?: string;
+  orderReference?: string;
 }

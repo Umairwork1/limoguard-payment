@@ -24,6 +24,7 @@ export class DirectService {
     });
   }
 
+  // v2 — still used to get available payment methods
   async initiatePayment(dto: InitiatePaymentDto) {
     try {
       const { data } = await this.client.post('/v2/InitiatePayment', {
@@ -36,37 +37,57 @@ export class DirectService {
     }
   }
 
+  // Step 1 — POST /v3/payments with SaveToken: true
   async registerToken(dto: RegisterTokenDto) {
     const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
-
+console.log("kk")
     const body = {
-      PaymentMethodId: dto.paymentMethodId,
-      InvoiceValue: dto.invoiceValue,
-      CustomerName: dto.customerName,
-      CustomerEmail: dto.customerEmail,
-      CustomerMobile: dto.customerMobile,
-      DisplayCurrencyIso: dto.displayCurrencyIso || 'KWD',
-      Language: dto.language || 'en',
-      SaveToken: true,
-      CallBackUrl: dto.callBackUrl || `${backendUrl}/api/direct/callback`,
-      ErrorUrl: dto.errorUrl || `${backendUrl}/api/direct/error`,
-      ...(dto.customerReference && { CustomerReference: dto.customerReference }),
+      Language: dto.language || 'EN',
+      PaymentMethod: 'CARD',
+      Order: {
+        Amount: dto.invoiceValue,
+        Currency: dto.currency || 'KWD',
+      },
+      SaveCardOptions: {
+        SaveToken: true,
+      },
+      Customer: {
+        Name: dto.customerName,
+        Email: dto.customerEmail,
+        Mobile: {
+          CountryCode: dto.customerMobileCountryCode,
+          Number: dto.customerMobileNumber,
+        },
+        Reference: dto.customerReference,
+      },
+      IntegrationUrls: {
+        Redirection: dto.callBackUrl || `${backendUrl}/api/direct/callback`,
+        ErrorRedirection: dto.errorUrl || `${backendUrl}/api/direct/error`,
+      },
     };
-
     try {
-      const { data } = await this.client.post('/v2/ExecutePayment', body);
+      const { data } = await this.client.post('/v3/payments', body);
+      
+    console.log(data,"data><")
+      // v3 returns PaymentId + PaymentURL
+      const paymentId =
+        data?.Data?.PaymentId?.toString() ||
+        data?.Data?.InvoiceId?.toString() ||
+        `tmp-${Date.now()}`;
 
-      const invoiceId = data?.Data?.InvoiceId?.toString() || `tmp-${Date.now()}`;
-      const invoiceUrl = data?.Data?.InvoiceURL || '';
+      const paymentUrl =
+        data?.Data?.PaymentURL ||
+        data?.Data?.InvoiceURL ||
+        '';
 
       await this.tokenModel.create({
-        invoiceId,
-        invoiceUrl,
+        paymentId,
+        paymentUrl,
         customerName: dto.customerName,
         customerEmail: dto.customerEmail,
-        customerMobile: dto.customerMobile,
+        customerMobile: `${dto.customerMobileCountryCode}${dto.customerMobileNumber}`,
         customerReference: dto.customerReference,
-        currencyIso: dto.displayCurrencyIso || 'KWD',
+        currencyIso: dto.currency || 'KWD',
         status: 'Pending',
         rawResponse: data,
       });
@@ -77,36 +98,45 @@ export class DirectService {
     }
   }
 
+  // Step 2 — GET /v3/payments/{paymentId} — called from callback
   async handleCallback(paymentId: string) {
     try {
-      const { data } = await this.client.post('/v2/GetPaymentStatus', {
-        Key: paymentId,
-        KeyType: 'paymentId',
-      });
+      const { data } = await this.client.get(`/v3/payments/${paymentId}`);
 
       const invoiceData = data?.Data;
-      const invoiceId = invoiceData?.InvoiceId?.toString();
-      const transaction = invoiceData?.InvoiceTransactions?.[0];
+     console.log(invoiceData,"invoicedata<<")
+      // v3 token: Card.Token is the primary path; fall back to SourceOfFund.Token
+      const customerTokenId =
+        invoiceData?.Card?.Token ||
+        invoiceData?.SourceOfFund?.Token ||
+        invoiceData?.CustomerTokenId ||
+        undefined;
 
-      const customerTokenId = transaction?.Card?.Token || undefined;
-      const paymentGateway = transaction?.PaymentGateway || '';
-      const maskedCard = transaction?.Card?.Number || transaction?.CardNumber || '';
+      const paymentGateway =
+        invoiceData?.SourceOfFund?.Type ||
+        invoiceData?.InvoiceTransactions?.[0]?.PaymentGateway ||
+        '';
 
-      if (invoiceId) {
-        await this.tokenModel.findOneAndUpdate(
-          { invoiceId },
-          {
-            customerTokenId,
-            paymentGateway,
-            maskedCard,
-            status: customerTokenId ? 'Active' : 'Pending',
-            rawResponse: data,
-          },
-          { new: true },
-        );
-      }
+      const maskedCard =
+        invoiceData?.Card?.Number ||
+        invoiceData?.SourceOfFund?.Card?.Number ||
+        invoiceData?.InvoiceTransactions?.[0]?.Card?.Number ||
+        '';
 
-      return { message: 'Token registered successfully', customerTokenId, invoiceId };
+      // Match by the paymentId from the callback query param
+      await this.tokenModel.findOneAndUpdate(
+        { paymentId },
+        {
+          customerTokenId: customerTokenId || undefined,
+          paymentGateway,
+          maskedCard,
+          status: customerTokenId ? 'Active' : 'Pending',
+          rawResponse: data,
+        },
+        { returnDocument: 'after' },
+      );
+
+      return { message: 'Callback processed', customerTokenId, paymentId };
     } catch (err) {
       this.handleApiError(err);
     }
@@ -125,6 +155,7 @@ export class DirectService {
     return token;
   }
 
+  // Step 3 — POST /v3/payments with SourceOfFund.Token
   async directCharge(tokenId: string, dto: DirectChargeDto) {
     const token = await this.tokenModel.findOne({
       customerTokenId: tokenId,
@@ -132,16 +163,29 @@ export class DirectService {
     });
     if (!token) throw new NotFoundException(`Active token ${tokenId} not found`);
 
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
+
     const body = {
-      CustomerTokenId: tokenId,
-      InvoiceValue: dto.invoiceValue,
-      DisplayCurrencyIso: dto.displayCurrencyIso || token.currencyIso || 'KWD',
-      Language: dto.language || 'en',
-      ...(dto.customerReference && { CustomerReference: dto.customerReference }),
+      Language: dto.language || 'EN',
+      PaymentMethod: 'CARD',
+      Order: {
+        Amount: dto.invoiceValue,
+        Currency: dto.currency || token.currencyIso || 'KWD',
+        ...(dto.orderReference && { Reference: dto.orderReference }),
+      },
+      SourceOfFund: {
+        Token: tokenId,
+      },
+      Customer: {
+        Reference: token.customerReference,
+      },
+      IntegrationUrls: {
+        Redirection: `${backendUrl}/api/direct/callback`,
+      },
     };
 
     try {
-      const { data } = await this.client.post('/v2/DirectPayment', body);
+      const { data } = await this.client.post('/v3/payments', body);
       return data;
     } catch (err) {
       this.handleApiError(err);
@@ -152,7 +196,7 @@ export class DirectService {
     const token = await this.tokenModel.findOneAndUpdate(
       { customerTokenId: tokenId },
       { status: 'Deleted' },
-      { new: true },
+      { returnDocument: 'after' },
     );
     if (!token) throw new NotFoundException(`Token ${tokenId} not found`);
     return { message: 'Token deleted successfully', tokenId };

@@ -9,10 +9,10 @@ export class CustomerToken {
   customerTokenId: string;
 
   @Prop({ required: true })
-  invoiceId: string;
+  paymentId: string;
 
   @Prop()
-  invoiceUrl: string;
+  paymentUrl: string;
 
   @Prop({ required: true })
   customerName: string;
@@ -23,7 +23,7 @@ export class CustomerToken {
   @Prop()
   customerMobile: string;
 
-  @Prop()
+  @Prop({ required: true })
   customerReference: string;
 
   @Prop()
